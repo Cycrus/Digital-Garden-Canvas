@@ -3,9 +3,10 @@ const RIGHT_BUTTON = 2;
 const MIDDLE_BUTTON = 4;
 
 const TOOL_DRAW = 0;
-const TOOL_PIPETTE = 1;
-const TOOL_MOVE = 2;
-const TOOL_ZOOM = 3;
+const TOOL_ERASE = 1;
+const TOOL_FILL = 2;
+const TOOL_PIPETTE = 3;
+const TOOL_MOVE = 4;
 
 class Vector2D {
     constructor(x, y) {
@@ -34,10 +35,16 @@ class PixelCanvasHandle {
         this.canvas = document.getElementById("pixel_canvas");
         this.camera_label = document.getElementById("camera_label");
         this.color_wheel = document.getElementById("color_wheel");
+        this.tools = new Map();
+        this.tools.set(TOOL_DRAW, document.getElementById("tool_draw"))
+        this.tools.set(TOOL_ERASE, document.getElementById("tool_erase"));
+        this.tools.set(TOOL_FILL, document.getElementById("tool_fill"));
+        this.tools.set(TOOL_PIPETTE, document.getElementById("tool_pipette"));
+        this.tools.set(TOOL_MOVE, document.getElementById("tool_move"));
 
         this.initial_color = "#000000";
         this.selected_color = this.color_wheel.value;
-        this.selected_tool = TOOL_MOVE;
+        this.selected_tool = TOOL_DRAW;
 
         this.context = this.canvas.getContext("2d");
         this.image_data = new Array(this.size.y);
@@ -47,6 +54,14 @@ class PixelCanvasHandle {
                 this.image_data[y][x] = this.initial_color;
             }
         }
+    }
+
+    switch_tool(tool_id) {
+        if(tool_id == this.selected_tool)
+            return;
+        this.tools.get(tool_id).className = "active_icon";
+        this.tools.get(this.selected_tool).className = "inactive_icon";
+        this.selected_tool = tool_id;
     }
 
     set_selected_color(color) {
@@ -110,9 +125,6 @@ class PixelCanvasHandle {
     }
 
     move_camera_callback(event) {
-        if(!this.check_mouse_button(event, MIDDLE_BUTTON))
-            return false;
-
         let move_delta = new Vector2D(event.movementX / this.scale,
                                       event.movementY / this.scale);
         this.move_camera(move_delta);
@@ -151,6 +163,19 @@ class PixelCanvasHandle {
         return true;
     }
 
+    get_pixel(pos) {
+        if(this.is_out_of_bounds(pos))
+            return undefined;
+        return this.image_data[pos.intY()][pos.intX()];
+    }
+
+    erase_pixel_callback(event) {
+        let old_color = this.selected_color;
+        this.selected_color = this.initial_color;
+        this.set_pixel_callback(event);
+        this.selected_color = old_color;
+    }
+
     set_pixel(pos, color) {
         if(this.is_out_of_bounds(pos))
             return false;
@@ -158,16 +183,7 @@ class PixelCanvasHandle {
         return true;
     }
 
-    get_pixel(pos) {
-        if(this.is_out_of_bounds(pos))
-            return undefined;
-        return this.image_data[pos.intY()][pos.intX()];
-    }
-
-    set_pixel_callback(event, force = false) {
-        if(!force && !this.check_mouse_button(event, LEFT_BUTTON))
-            return;
-
+    set_pixel_callback(event) {
         let cursor_pos = new Vector2D(Math.floor(event.clientX / this.scale),
                                       Math.floor(event.clientY / this.scale));
         let camera_corrected_cursor_pos = this.camera_correct_coordinate(cursor_pos, -1);
@@ -179,6 +195,20 @@ class PixelCanvasHandle {
 
         this.set_pixel(camera_corrected_cursor_pos, this.selected_color);
         this.render_pixel(camera_corrected_cursor_pos);
+    }
+
+    copy_pixel_callback(event) {
+        let cursor_pos = new Vector2D(Math.floor(event.clientX / this.scale),
+                                      Math.floor(event.clientY / this.scale));
+        let camera_corrected_cursor_pos = this.camera_correct_coordinate(cursor_pos, -1);
+
+        if(this.is_out_of_bounds(camera_corrected_cursor_pos))
+            return;
+        if(this.get_pixel(camera_corrected_cursor_pos) == this.selected_color)
+            return;
+
+        this.selected_color = this.get_pixel(camera_corrected_cursor_pos);
+        this.color_wheel.value = this.selected_color;
     }
 
     resizeCanvas() {
@@ -197,47 +227,76 @@ window.addEventListener('resize', () => {
 });
 
 // TODO: Add full touch screen support
-// TODO: Add color picker
+// TODO: Add all tools in the list
 // TODO: Add image download function
 // TODO: Add server side storage of image data
+document.addEventListener('contextmenu', (event) => {
+    event.preventDefault();
+});
+
 canvas_handle.color_wheel.addEventListener("input", (event) => {
     canvas_handle.set_selected_color(event.target.value);
 });
 
 canvas_handle.canvas.addEventListener('mousedown', (event) => {
     if(canvas_handle.check_mouse_button(event, LEFT_BUTTON)) {
-        canvas_handle.set_pixel_callback(event, true);
+        if(canvas_handle.selected_tool == TOOL_DRAW)
+            canvas_handle.set_pixel_callback(event);
+        if(canvas_handle.selected_tool == TOOL_ERASE)
+            canvas_handle.erase_pixel_callback(event);
+        if(canvas_handle.selected_tool == TOOL_PIPETTE)
+            canvas_handle.copy_pixel_callback(event);
+    }
+
+    if(canvas_handle.check_mouse_button(event, RIGHT_BUTTON)) {
+        canvas_handle.erase_pixel_callback(event);
     }
 });
 canvas_handle.canvas.addEventListener('mousemove', (event) => {
-    canvas_handle.set_pixel_callback(event);
-    canvas_handle.move_camera_callback(event);
+    if(canvas_handle.check_mouse_button(event, LEFT_BUTTON)) {
+        if(canvas_handle.selected_tool == TOOL_DRAW)
+            canvas_handle.set_pixel_callback(event);
+        if(canvas_handle.selected_tool == TOOL_MOVE)
+            canvas_handle.move_camera_callback(event);
+        if(canvas_handle.selected_tool == TOOL_ERASE)
+            canvas_handle.erase_pixel_callback(event);
+    }
+
+    if(canvas_handle.check_mouse_button(event, RIGHT_BUTTON)) {
+        canvas_handle.erase_pixel_callback(event);
+    }
+
+    if(canvas_handle.check_mouse_button(event, MIDDLE_BUTTON)) {
+        canvas_handle.move_camera_callback(event);
+    }
 });
 canvas_handle.canvas.addEventListener("wheel", (event) => {
     canvas_handle.zoom_callback(event);
 });
 
 canvas_handle.canvas.addEventListener("touchmove", (event) => {
-    
+    if(event.touches.length === 1) {
+
+    }
+    else if(event.touches.length === 2) {
+
+    }
 });
 
 document.getElementById("tool_draw").addEventListener("click", (event) => {
-    
+    canvas_handle.switch_tool(TOOL_DRAW);
 });
 document.getElementById("tool_erase").addEventListener("click", (event) => {
-    
+    canvas_handle.switch_tool(TOOL_ERASE);
 });
 document.getElementById("tool_fill").addEventListener("click", (event) => {
-    
+    canvas_handle.switch_tool(TOOL_FILL);
 });
 document.getElementById("tool_pipette").addEventListener("click", (event) => {
-    
+    canvas_handle.switch_tool(TOOL_PIPETTE);
 });
 document.getElementById("tool_move").addEventListener("click", (event) => {
-    
-});
-document.getElementById("tool_zoom").addEventListener("click", (event) => {
-    
+    canvas_handle.switch_tool(TOOL_MOVE);
 });
 
 canvas_handle.resizeCanvas();
