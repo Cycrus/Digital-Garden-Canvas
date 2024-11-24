@@ -8,6 +8,11 @@ const TOOL_FILL = 2;
 const TOOL_PIPETTE = 3;
 const TOOL_MOVE = 4;
 
+const BRUSH_SIZE_1 = 1;
+const BRUSH_SIZE_2 = 2;
+const BRUSH_SIZE_3 = 4;
+const BRUSH_SIZE_4 = 8;
+
 class Vector2D {
     constructor(x, y) {
         this.x = x;
@@ -35,6 +40,8 @@ class PixelCanvasHandle {
         this.canvas = document.getElementById("pixel_canvas");
         this.camera_label = document.getElementById("camera_label");
         this.color_wheel = document.getElementById("color_wheel");
+        this.brush_size_picker = document.getElementById("size_picker");
+
         this.tools = new Map();
         this.tools.set(TOOL_DRAW, document.getElementById("tool_draw"))
         this.tools.set(TOOL_ERASE, document.getElementById("tool_erase"));
@@ -42,9 +49,16 @@ class PixelCanvasHandle {
         this.tools.set(TOOL_PIPETTE, document.getElementById("tool_pipette"));
         this.tools.set(TOOL_MOVE, document.getElementById("tool_move"));
 
+        this.brush_size_icons = new Map();
+        this.brush_size_icons.set(BRUSH_SIZE_1, "resources/icons/size_icon_1.png");
+        this.brush_size_icons.set(BRUSH_SIZE_2, "resources/icons/size_icon_2.png");
+        this.brush_size_icons.set(BRUSH_SIZE_3, "resources/icons/size_icon_3.png");
+        this.brush_size_icons.set(BRUSH_SIZE_4, "resources/icons/size_icon_4.png");
+
         this.initial_color = "#000000";
         this.selected_color = this.color_wheel.value;
         this.selected_tool = TOOL_DRAW;
+        this.brush_size = BRUSH_SIZE_1;
 
         this.context = this.canvas.getContext("2d");
         this.image_data = new Array(this.size.y);
@@ -62,6 +76,13 @@ class PixelCanvasHandle {
         this.tools.get(tool_id).className = "active_icon";
         this.tools.get(this.selected_tool).className = "inactive_icon";
         this.selected_tool = tool_id;
+    }
+
+    rotate_brush_size() {
+        this.brush_size *= 2;
+        if(this.brush_size > BRUSH_SIZE_4)
+            this.brush_size = BRUSH_SIZE_1;
+        this.brush_size_picker.src = this.brush_size_icons.get(this.brush_size);
     }
 
     set_selected_color(color) {
@@ -184,17 +205,29 @@ class PixelCanvasHandle {
     }
 
     set_pixel_callback(event) {
+        let half_size = Math.floor(this.brush_size / 2);
+        let lower_bound = -half_size;
+        let upper_bound = half_size;
+        if(half_size == 0) {
+            lower_bound = 0;
+            upper_bound = 1;
+        }
         let cursor_pos = new Vector2D(Math.floor(event.clientX / this.scale),
                                       Math.floor(event.clientY / this.scale));
-        let camera_corrected_cursor_pos = this.camera_correct_coordinate(cursor_pos, -1);
+        for(let y = lower_bound; y < upper_bound; y++) {
+            for(let x = lower_bound; x < upper_bound; x++) {
+                let pixel_pos = new Vector2D(cursor_pos.x + x, cursor_pos.y + y);
+                let camera_corrected_pixel_pos = this.camera_correct_coordinate(pixel_pos, -1);
 
-        if(this.is_out_of_bounds(camera_corrected_cursor_pos))
-            return;
-        if(this.get_pixel(camera_corrected_cursor_pos) == this.selected_color)
-            return;
+                if(this.is_out_of_bounds(camera_corrected_pixel_pos))
+                    continue;
+                if(this.get_pixel(camera_corrected_pixel_pos) == this.selected_color)
+                    continue;
 
-        this.set_pixel(camera_corrected_cursor_pos, this.selected_color);
-        this.render_pixel(camera_corrected_cursor_pos);
+                this.set_pixel(camera_corrected_pixel_pos, this.selected_color);
+                this.render_pixel(camera_corrected_pixel_pos);
+            }
+        }
     }
 
     copy_pixel_callback(event) {
@@ -283,6 +316,9 @@ canvas_handle.canvas.addEventListener("touchmove", (event) => {
     }
 });
 
+document.getElementById("size_picker").addEventListener("click", (event) => {
+    canvas_handle.rotate_brush_size();
+});
 document.getElementById("tool_draw").addEventListener("click", (event) => {
     canvas_handle.switch_tool(TOOL_DRAW);
 });

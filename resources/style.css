@@ -6,9 +6,9 @@ html, body {
 }
 
 body {
-    touch-action: none; /* Disable touch scrolling on mobile */
-    -ms-touch-action: none; /* For older Microsoft browsers */
-    overscroll-behavior: none; /* Prevent overscrolling or "bounce" effect on mobile */
+    touch-action: none;
+    -ms-touch-action: none;
+    overscroll-behavior: none;
 }
 
 #pixel_canvas {
@@ -34,7 +34,7 @@ body {
     left: 10px;
     padding: 5px;
     border-radius: 10px;
-    width: 60px;
+    width: 50px;
     background-color: rgba(255, 255, 255, 0.5);
     transform: translateY(-50%);
     text-align: center;
@@ -42,17 +42,14 @@ body {
 
 .inactive_icon {
     margin: 10px;
-    width: 40px;
+    width: 30px;
+    height: 30px;
 }
 
 .active_icon {
     margin: 10px;
-    width: 40px;
+    width: 30px;
+    height: 30px;
     filter: drop-shadow(0 0 5px rgb(30, 174, 241)) 
             drop-shadow(0 0 10px rgb(30, 174, 241));
-}
-
-#color_wheel {
-    width: 40px;
-    height: 40px;
 }
