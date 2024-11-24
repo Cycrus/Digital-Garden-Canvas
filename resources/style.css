@@ -17,28 +17,42 @@ body {
 
 #camera_label {
     position: fixed;
-    bottom: 10px;
-    right: 10px;
-    padding: 5px;
+    top: 10px;
+    right: 50%;
+    padding: 10px;
     border-radius: 10px;
     background-color: rgb(255, 255, 255, 0.5);
+    font-size: 14pt;
+    pointer-events: none;
+    transform: translateX(50%);
+    text-align: center;
 }
 
 #toolbar {
     position: fixed;
-    bottom: 10px;
+    top: 50%;
     left: 10px;
     padding: 5px;
     border-radius: 10px;
-    width: 70px;
+    width: 60px;
     background-color: rgba(255, 255, 255, 0.5);
+    transform: translateY(-50%);
+    text-align: center;
 }
 
-.icon {
+.inactive_icon {
     margin: 10px;
+    width: 40px;
+}
+
+.active_icon {
+    margin: 10px;
+    width: 40px;
+    filter: drop-shadow(0 0 5px rgb(30, 174, 241)) 
+            drop-shadow(0 0 10px rgb(30, 174, 241));
 }
 
 #color_wheel {
-    width: 50px;
-    height: 50px;
+    width: 40px;
+    height: 40px;
 }

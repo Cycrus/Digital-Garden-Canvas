@@ -10,11 +10,13 @@
     <canvas id="pixel_canvas"></canvas>
     <p id="camera_label">0 | 0 (100%)</p>
     <div id="toolbar">
-        <input class="icon" type="color" id="color_wheel">
-        <img class="icon" src="resources/icons/draw_icon.png" width="50" alt="DRAW">
-        <img class="icon" src="resources/icons/pipette_icon.png" width="50" alt="COLOR SELECT">
-        <img class="icon" src="resources/icons/move_icon.png" width="50" alt="MOVE">
-        <img class="icon" src="resources/icons/zoom_icon.png" width="50" alt="ZOOM">
+        <input class="inactive_icon" type="color" id="color_wheel">
+        <img class="inactive_icon" id="tool_draw" src="resources/icons/draw_icon.png" alt="DRAW">
+        <img class="inactive_icon" id="tool_erase" src="resources/icons/erase_icon.png" alt="ERASE">
+        <img class="inactive_icon" id="tool_fill" src="resources/icons/fill_icon.png" alt="FILL">
+        <img class="inactive_icon" id="tool_pipette" src="resources/icons/pipette_icon.png" alt="COLOR SELECT">
+        <img class="active_icon" id="tool_move" src="resources/icons/move_icon.png" alt="MOVE">
+        <img class="inactive_icon" id="tool_zoom" src="resources/icons/zoom_icon.png" alt="ZOOM">
     </div>
     <script type="text/javascript" src="resources/client_logic.js"></script>
 </body>

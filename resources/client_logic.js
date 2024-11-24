@@ -2,6 +2,11 @@ const LEFT_BUTTON = 1;
 const RIGHT_BUTTON = 2;
 const MIDDLE_BUTTON = 4;
 
+const TOOL_DRAW = 0;
+const TOOL_PIPETTE = 1;
+const TOOL_MOVE = 2;
+const TOOL_ZOOM = 3;
+
 class Vector2D {
     constructor(x, y) {
         this.x = x;
@@ -32,6 +37,7 @@ class PixelCanvasHandle {
 
         this.initial_color = "#000000";
         this.selected_color = this.color_wheel.value;
+        this.selected_tool = TOOL_MOVE;
 
         this.context = this.canvas.getContext("2d");
         this.image_data = new Array(this.size.y);
@@ -211,18 +217,26 @@ canvas_handle.canvas.addEventListener("wheel", (event) => {
     canvas_handle.zoom_callback(event);
 });
 
-function listAllProperties(obj) {
-    let props = [];
-    while (obj) {
-        props = props.concat(Object.getOwnPropertyNames(obj));
-        obj = Object.getPrototypeOf(obj);
-    }
-    return props;
-}
-
-const obj = { name: "John", age: 30 };
-console.log(listAllProperties(obj));
 canvas_handle.canvas.addEventListener("touchmove", (event) => {
+    
+});
+
+document.getElementById("tool_draw").addEventListener("click", (event) => {
+    
+});
+document.getElementById("tool_erase").addEventListener("click", (event) => {
+    
+});
+document.getElementById("tool_fill").addEventListener("click", (event) => {
+    
+});
+document.getElementById("tool_pipette").addEventListener("click", (event) => {
+    
+});
+document.getElementById("tool_move").addEventListener("click", (event) => {
+    
+});
+document.getElementById("tool_zoom").addEventListener("click", (event) => {
     
 });
 
