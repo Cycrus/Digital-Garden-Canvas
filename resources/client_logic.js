@@ -25,11 +25,14 @@ class PixelCanvasHandle {
         this.scale = this.default_scale;
         this.size = new Vector2D(1000, 1000);
         this.camera_pos = new Vector2D(0, 0);
-        this.background_color = "#ffffff";
-        this.initial_color = "#000000";
-        this.selected_color = "#005500";
+
         this.canvas = document.getElementById("pixel_canvas");
         this.camera_label = document.getElementById("camera_label");
+        this.color_wheel = document.getElementById("color_wheel");
+
+        this.initial_color = "#000000";
+        this.selected_color = this.color_wheel.value;
+
         this.context = this.canvas.getContext("2d");
         this.image_data = new Array(this.size.y);
         for(let y = 0; y < this.size.y; y++) {
@@ -38,6 +41,10 @@ class PixelCanvasHandle {
                 this.image_data[y][x] = this.initial_color;
             }
         }
+    }
+
+    set_selected_color(color) {
+        this.selected_color = color;
     }
 
     update_camera_label() {
@@ -183,11 +190,14 @@ window.addEventListener('resize', () => {
     canvas_handle.full_render();
 });
 
-// TODO: Add panning function
-// TODO: Add zoom function
+// TODO: Add full touch screen support
 // TODO: Add color picker
 // TODO: Add image download function
 // TODO: Add server side storage of image data
+canvas_handle.color_wheel.addEventListener("input", (event) => {
+    canvas_handle.set_selected_color(event.target.value);
+});
+
 canvas_handle.canvas.addEventListener('mousedown', (event) => {
     if(canvas_handle.check_mouse_button(event, LEFT_BUTTON)) {
         canvas_handle.set_pixel_callback(event, true);
@@ -199,6 +209,21 @@ canvas_handle.canvas.addEventListener('mousemove', (event) => {
 });
 canvas_handle.canvas.addEventListener("wheel", (event) => {
     canvas_handle.zoom_callback(event);
+});
+
+function listAllProperties(obj) {
+    let props = [];
+    while (obj) {
+        props = props.concat(Object.getOwnPropertyNames(obj));
+        obj = Object.getPrototypeOf(obj);
+    }
+    return props;
+}
+
+const obj = { name: "John", age: 30 };
+console.log(listAllProperties(obj));
+canvas_handle.canvas.addEventListener("touchmove", (event) => {
+    
 });
 
 canvas_handle.resizeCanvas();
