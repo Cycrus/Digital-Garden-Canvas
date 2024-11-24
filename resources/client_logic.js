@@ -4,14 +4,14 @@ const MIDDLE_BUTTON = 4;
 
 const TOOL_DRAW = 0;
 const TOOL_ERASE = 1;
-const TOOL_FILL = 2;
-const TOOL_PIPETTE = 3;
-const TOOL_MOVE = 4;
+const TOOL_PIPETTE = 2;
+const TOOL_MOVE = 3;
 
 const BRUSH_SIZE_1 = 1;
 const BRUSH_SIZE_2 = 2;
 const BRUSH_SIZE_3 = 4;
 const BRUSH_SIZE_4 = 8;
+
 
 class Vector2D {
     constructor(x, y) {
@@ -27,11 +27,19 @@ class Vector2D {
     }
 }
 
+
+class PixelEvent {
+    constructor(color) {
+        this.color = color;
+        this.pixel_list = [];
+    }
+}
+
+
 class PixelCanvasHandle {
     constructor() {
         this.default_scale = 10;
         this.min_scale = 5;
-        this.scale_step = 5;
         this.max_scale = 100;
         this.scale = this.default_scale;
         this.size = new Vector2D(1000, 1000);
@@ -45,7 +53,6 @@ class PixelCanvasHandle {
         this.tools = new Map();
         this.tools.set(TOOL_DRAW, document.getElementById("tool_draw"))
         this.tools.set(TOOL_ERASE, document.getElementById("tool_erase"));
-        this.tools.set(TOOL_FILL, document.getElementById("tool_fill"));
         this.tools.set(TOOL_PIPETTE, document.getElementById("tool_pipette"));
         this.tools.set(TOOL_MOVE, document.getElementById("tool_move"));
 
@@ -60,6 +67,12 @@ class PixelCanvasHandle {
         this.selected_tool = TOOL_DRAW;
         this.brush_size = BRUSH_SIZE_1;
 
+        this.prev_touch_position = new Vector2D(0.0, 0.0);
+        this.curr_touch_position = new Vector2D(0.0, 0.0);
+
+        this.prev_touch_distance = 0.0;
+        this.curr_touch_distance = 0.0;
+
         this.context = this.canvas.getContext("2d");
         this.image_data = new Array(this.size.y);
         for(let y = 0; y < this.size.y; y++) {
@@ -68,6 +81,45 @@ class PixelCanvasHandle {
                 this.image_data[y][x] = this.initial_color;
             }
         }
+    }
+
+    reset_touch_distance() {
+        this.prev_touch_distance = 0.0;
+        this.curr_touch_distance = 0.0;
+    }
+
+    reset_touch_motion() {
+        this.prev_touch_position.x = 0.0;
+        this.prev_touch_position.y = 0.0;
+        this.curr_touch_position.x = 0.0;
+        this.curr_touch_position.y = 0.0;
+    }
+
+    update_touch_motion(pos) {
+        this.prev_touch_position = this.curr_touch_position;
+        this.curr_touch_position = pos;
+    }
+
+    update_touch_distance(pos1, pos2) {
+        this.prev_touch_distance = this.curr_touch_distance;
+        this.curr_touch_distance = Math.sqrt(Math.pow(pos2.x - pos1.x, 2) + 
+                                             Math.pow(pos2.y - pos1.y, 2));
+    }
+
+    get_touch_motion() {
+        if(this.curr_touch_position.x == 0.0 && this.curr_touch_position.y == 0.0 ||
+            this.prev_touch_position.x == 0.0 && this.prev_touch_position.y == 0.0) {
+            return new Vector2D(0.0, 0.0);
+        }
+        return new Vector2D(this.curr_touch_position.x - this.prev_touch_position.x,
+                            this.curr_touch_position.y - this.prev_touch_position.y);
+    }
+
+    get_touch_zoom() {
+        if(this.curr_touch_distance == 0.0 || this.prev_touch_distance == 0.0) {
+            return 0.0;
+        }
+        return this.curr_touch_distance - this.prev_touch_distance;
     }
 
     switch_tool(tool_id) {
@@ -145,9 +197,9 @@ class PixelCanvasHandle {
         this.camera_pos = new_camera_pos;
     }
 
-    move_camera_callback(event) {
-        let move_delta = new Vector2D(event.movementX / this.scale,
-                                      event.movementY / this.scale);
+    move_camera_callback(movement) {
+        let move_delta = new Vector2D(movement.x / this.scale,
+                                      movement.y / this.scale);
         this.move_camera(move_delta);
         this.full_render();
     }
@@ -161,12 +213,12 @@ class PixelCanvasHandle {
         this.scale = new_scale;
     }
 
-    zoom_callback(event) {
-        if(event.wheelDelta > 0) {
-            this.zoom(this.scale_step);
+    zoom_callback(direction, zoom_amount) {
+        if(direction > 0) {
+            this.zoom(zoom_amount);
         }
-        else if(event.wheelDelta < 0) {
-            this.zoom(-this.scale_step);
+        else if(direction < 0) {
+            this.zoom(-zoom_amount);
         }
         this.full_render();
     }
@@ -190,10 +242,10 @@ class PixelCanvasHandle {
         return this.image_data[pos.intY()][pos.intX()];
     }
 
-    erase_pixel_callback(event) {
+    erase_pixel_callback(pos) {
         let old_color = this.selected_color;
         this.selected_color = this.initial_color;
-        this.set_pixel_callback(event);
+        this.set_pixel_callback(pos);
         this.selected_color = old_color;
     }
 
@@ -204,7 +256,7 @@ class PixelCanvasHandle {
         return true;
     }
 
-    set_pixel_callback(event) {
+    set_pixel_callback(pos) {
         let half_size = Math.floor(this.brush_size / 2);
         let lower_bound = -half_size;
         let upper_bound = half_size;
@@ -212,8 +264,8 @@ class PixelCanvasHandle {
             lower_bound = 0;
             upper_bound = 1;
         }
-        let cursor_pos = new Vector2D(Math.floor(event.clientX / this.scale),
-                                      Math.floor(event.clientY / this.scale));
+        let cursor_pos = new Vector2D(Math.floor(pos.x / this.scale),
+                                      Math.floor(pos.y / this.scale));
         for(let y = lower_bound; y < upper_bound; y++) {
             for(let x = lower_bound; x < upper_bound; x++) {
                 let pixel_pos = new Vector2D(cursor_pos.x + x, cursor_pos.y + y);
@@ -230,9 +282,9 @@ class PixelCanvasHandle {
         }
     }
 
-    copy_pixel_callback(event) {
-        let cursor_pos = new Vector2D(Math.floor(event.clientX / this.scale),
-                                      Math.floor(event.clientY / this.scale));
+    copy_pixel_callback(pos) {
+        let cursor_pos = new Vector2D(Math.floor(pos.x / this.scale),
+                                      Math.floor(pos.y / this.scale));
         let camera_corrected_cursor_pos = this.camera_correct_coordinate(cursor_pos, -1);
 
         if(this.is_out_of_bounds(camera_corrected_cursor_pos))
@@ -274,45 +326,68 @@ canvas_handle.color_wheel.addEventListener("input", (event) => {
 canvas_handle.canvas.addEventListener('mousedown', (event) => {
     if(canvas_handle.check_mouse_button(event, LEFT_BUTTON)) {
         if(canvas_handle.selected_tool == TOOL_DRAW)
-            canvas_handle.set_pixel_callback(event);
+            canvas_handle.set_pixel_callback(new Vector2D(event.clientX, event.clientY));
         if(canvas_handle.selected_tool == TOOL_ERASE)
-            canvas_handle.erase_pixel_callback(event);
+            canvas_handle.erase_pixel_callback(new Vector2D(event.clientX, event.clientY));
         if(canvas_handle.selected_tool == TOOL_PIPETTE)
-            canvas_handle.copy_pixel_callback(event);
+            canvas_handle.copy_pixel_callback(new Vector2D(event.clientX, event.clientY));
     }
 
     if(canvas_handle.check_mouse_button(event, RIGHT_BUTTON)) {
-        canvas_handle.erase_pixel_callback(event);
+        canvas_handle.erase_pixel_callback(new Vector2D(event.clientX, event.clientY));
     }
 });
 canvas_handle.canvas.addEventListener('mousemove', (event) => {
     if(canvas_handle.check_mouse_button(event, LEFT_BUTTON)) {
         if(canvas_handle.selected_tool == TOOL_DRAW)
-            canvas_handle.set_pixel_callback(event);
+            canvas_handle.set_pixel_callback(new Vector2D(event.clientX, event.clientY));
         if(canvas_handle.selected_tool == TOOL_MOVE)
-            canvas_handle.move_camera_callback(event);
+            canvas_handle.move_camera_callback(new Vector2D(event.movementX, event.movementY));
         if(canvas_handle.selected_tool == TOOL_ERASE)
-            canvas_handle.erase_pixel_callback(event);
+            canvas_handle.erase_pixel_callback(new Vector2D(event.clientX, event.clientY));
     }
 
     if(canvas_handle.check_mouse_button(event, RIGHT_BUTTON)) {
-        canvas_handle.erase_pixel_callback(event);
+        canvas_handle.erase_pixel_callback(new Vector2D(event.clientX, event.clientY));
     }
 
     if(canvas_handle.check_mouse_button(event, MIDDLE_BUTTON)) {
-        canvas_handle.move_camera_callback(event);
+        canvas_handle.move_camera_callback(new Vector2D(event.movementX, event.movementY));
     }
 });
 canvas_handle.canvas.addEventListener("wheel", (event) => {
-    canvas_handle.zoom_callback(event);
+    canvas_handle.zoom_callback(event.wheelDelta, 5);
 });
 
+canvas_handle.canvas.addEventListener("touchstart", (event) => {
+    canvas_handle.reset_touch_distance();
+    canvas_handle.reset_touch_motion();
+});
+canvas_handle.canvas.addEventListener("touchend", (event) => {
+    canvas_handle.reset_touch_distance();
+    canvas_handle.reset_touch_motion();
+});
+canvas_handle.canvas.addEventListener("touchcancel", (event) => {
+    canvas_handle.reset_touch_distance();
+    canvas_handle.reset_touch_motion();
+});
 canvas_handle.canvas.addEventListener("touchmove", (event) => {
     if(event.touches.length === 1) {
-
+        if(canvas_handle.selected_tool == TOOL_DRAW)
+            canvas_handle.set_pixel_callback(new Vector2D(event.touches[0].clientX, event.touches[0].clientY));
+        if(canvas_handle.selected_tool == TOOL_MOVE) {
+            canvas_handle.update_touch_motion(new Vector2D(event.touches[0].clientX, event.touches[0].clientY))
+            canvas_handle.move_camera_callback(canvas_handle.get_touch_motion());
+        }
+        if(canvas_handle.selected_tool == TOOL_ERASE)
+            canvas_handle.erase_pixel_callback(new Vector2D(event.touches[0].clientX, event.touches[0].clientY));
     }
     else if(event.touches.length === 2) {
-
+        if(canvas_handle.selected_tool == TOOL_MOVE) {
+            canvas_handle.update_touch_distance(new Vector2D(event.touches[0].clientX, event.touches[0].clientY),
+                                                new Vector2D(event.touches[1].clientX, event.touches[1].clientY));
+            canvas_handle.zoom_callback(canvas_handle.get_touch_zoom(), 1);
+        }
     }
 });
 
@@ -324,9 +399,6 @@ document.getElementById("tool_draw").addEventListener("click", (event) => {
 });
 document.getElementById("tool_erase").addEventListener("click", (event) => {
     canvas_handle.switch_tool(TOOL_ERASE);
-});
-document.getElementById("tool_fill").addEventListener("click", (event) => {
-    canvas_handle.switch_tool(TOOL_FILL);
 });
 document.getElementById("tool_pipette").addEventListener("click", (event) => {
     canvas_handle.switch_tool(TOOL_PIPETTE);
