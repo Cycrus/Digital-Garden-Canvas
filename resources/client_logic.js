@@ -33,6 +33,10 @@ class PixelEvent {
         this.color = color;
         this.pixel_list = [];
     }
+
+    add_pixel(pos) {
+        this.pixel_list.push(pos);
+    }
 }
 
 
@@ -67,6 +71,8 @@ class PixelCanvasHandle {
         this.selected_tool = TOOL_DRAW;
         this.brush_size = BRUSH_SIZE_1;
 
+        this.curr_event = undefined;
+
         this.prev_touch_position = new Vector2D(0.0, 0.0);
         this.curr_touch_position = new Vector2D(0.0, 0.0);
 
@@ -81,6 +87,14 @@ class PixelCanvasHandle {
                 this.image_data[y][x] = this.initial_color;
             }
         }
+    }
+
+    create_new_event() {
+        this.curr_event = new PixelEvent(this.selected_color);
+    }
+
+    clear_curr_event() {
+        this.curr_event = undefined;
     }
 
     reset_touch_distance() {
@@ -253,6 +267,8 @@ class PixelCanvasHandle {
         if(this.is_out_of_bounds(pos))
             return false;
         this.image_data[pos.intY()][pos.intX()] = color;
+        if(this.curr_event != undefined)
+            this.curr_event.add_pixel(new Vector2D(pos.intX(), pos.intY()));
         return true;
     }
 
@@ -311,8 +327,6 @@ window.addEventListener('resize', () => {
     canvas_handle.full_render();
 });
 
-// TODO: Add full touch screen support
-// TODO: Add all tools in the list
 // TODO: Add image download function
 // TODO: Add server side storage of image data
 document.addEventListener('contextmenu', (event) => {
@@ -324,6 +338,8 @@ canvas_handle.color_wheel.addEventListener("input", (event) => {
 });
 
 canvas_handle.canvas.addEventListener('mousedown', (event) => {
+    canvas_handle.create_new_event();
+
     if(canvas_handle.check_mouse_button(event, LEFT_BUTTON)) {
         if(canvas_handle.selected_tool == TOOL_DRAW)
             canvas_handle.set_pixel_callback(new Vector2D(event.clientX, event.clientY));
@@ -354,6 +370,9 @@ canvas_handle.canvas.addEventListener('mousemove', (event) => {
     if(canvas_handle.check_mouse_button(event, MIDDLE_BUTTON)) {
         canvas_handle.move_camera_callback(new Vector2D(event.movementX, event.movementY));
     }
+});
+canvas_handle.canvas.addEventListener('mouseup', (event) => {
+    canvas_handle.clear_curr_event();
 });
 canvas_handle.canvas.addEventListener("wheel", (event) => {
     canvas_handle.zoom_callback(event.wheelDelta, 5);
