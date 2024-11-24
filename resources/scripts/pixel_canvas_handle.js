@@ -1,3 +1,7 @@
+/**
+ * A class responsible for handling all actions on the local canvas.
+ */
+
 const LEFT_BUTTON = 1;
 const RIGHT_BUTTON = 2;
 const MIDDLE_BUTTON = 4;
@@ -11,33 +15,6 @@ const BRUSH_SIZE_1 = 1;
 const BRUSH_SIZE_2 = 2;
 const BRUSH_SIZE_3 = 4;
 const BRUSH_SIZE_4 = 8;
-
-
-class Vector2D {
-    constructor(x, y) {
-        this.x = x;
-        this.y = y;
-    }
-
-    intX() {
-        return Math.floor(this.x);
-    }
-    intY() {
-        return Math.floor(this.y);
-    }
-}
-
-
-class PixelEvent {
-    constructor(color) {
-        this.color = color;
-        this.pixel_list = [];
-    }
-
-    add_pixel(pos) {
-        this.pixel_list.push(pos);
-    }
-}
 
 
 class PixelCanvasHandle {
@@ -89,19 +66,53 @@ class PixelCanvasHandle {
         }
     }
 
+    /**
+     * Posts a task to an asynchronous download worker to convert the image data into a png image.
+     * When the png image is returned, the image can be downloaded.
+     */
+    download_image() {
+        const worker = new Worker('resources/scripts/download_worker.js');
+    
+        worker.postMessage({
+            image_data: this.image_data,
+            size: this.size
+        });
+    
+        worker.onmessage = (event) => {
+            const png_data_url = event.data;
+            const link = document.createElement('a');
+            link.href = png_data_url;
+            link.download = 'image.png';
+            link.click();
+        };
+    }
+    
+
+    /**
+     * Starts the tracking of a new pixel setting event.
+     */
     create_new_event() {
         this.curr_event = new PixelEvent(this.selected_color);
     }
 
+    /**
+     * Ends the tracking of a new pixel setting event.
+     */
     clear_curr_event() {
         this.curr_event = undefined;
     }
 
+    /**
+     * Resets the distances between both fingers on the touchscreen.
+     */
     reset_touch_distance() {
         this.prev_touch_distance = 0.0;
         this.curr_touch_distance = 0.0;
     }
 
+    /**
+     * Resets the positions of the finger on the touchscreen.
+     */
     reset_touch_motion() {
         this.prev_touch_position.x = 0.0;
         this.prev_touch_position.y = 0.0;
@@ -109,17 +120,30 @@ class PixelCanvasHandle {
         this.curr_touch_position.y = 0.0;
     }
 
+    /**
+     * Updates the touchscreen finger positions for motion computations.
+     * @param {Vector2D} pos The current position of the finger on the touchscreen.
+     */
     update_touch_motion(pos) {
         this.prev_touch_position = this.curr_touch_position;
         this.curr_touch_position = pos;
     }
 
+    /**
+     * Updates the touchscreen distances between both fingers on the touchscreen during a zoom action.
+     * @param {Vector2D} pos1 The position of the first finger.
+     * @param {Vector2D} pos2 The position of the second finger.
+     */
     update_touch_distance(pos1, pos2) {
         this.prev_touch_distance = this.curr_touch_distance;
         this.curr_touch_distance = Math.sqrt(Math.pow(pos2.x - pos1.x, 2) + 
                                              Math.pow(pos2.y - pos1.y, 2));
     }
 
+    /**
+     * Computes and returns the current motion vector of the finger on the touchscreen.
+     * @returns The motion vector.
+     */
     get_touch_motion() {
         if(this.curr_touch_position.x == 0.0 && this.curr_touch_position.y == 0.0 ||
             this.prev_touch_position.x == 0.0 && this.prev_touch_position.y == 0.0) {
@@ -129,6 +153,11 @@ class PixelCanvasHandle {
                             this.curr_touch_position.y - this.prev_touch_position.y);
     }
 
+    /**
+     * Computes and returns the current difference between the previous and the current
+     * finger distance of both fingers on the touchscreen.
+     * @returns The difference between previous and current finger distances.
+     */
     get_touch_zoom() {
         if(this.curr_touch_distance == 0.0 || this.prev_touch_distance == 0.0) {
             return 0.0;
@@ -136,6 +165,10 @@ class PixelCanvasHandle {
         return this.curr_touch_distance - this.prev_touch_distance;
     }
 
+    /**
+     * Switches the currently active tool.
+     * @param {int} tool_id The id of the newly selected tool.
+     */
     switch_tool(tool_id) {
         if(tool_id == this.selected_tool)
             return;
@@ -144,6 +177,9 @@ class PixelCanvasHandle {
         this.selected_tool = tool_id;
     }
 
+    /**
+     * Rotates through the different brush size options in increasing order.
+     */
     rotate_brush_size() {
         this.brush_size *= 2;
         if(this.brush_size > BRUSH_SIZE_4)
@@ -151,15 +187,26 @@ class PixelCanvasHandle {
         this.brush_size_picker.src = this.brush_size_icons.get(this.brush_size);
     }
 
+    /**
+     * Sets a new color string to teh currently selected color.
+     * @param {string} color The new color to set the brush to.
+     */
     set_selected_color(color) {
         this.selected_color = color;
     }
 
+    /**
+     * Updates the camera label on the canvas, which shows position and zoom factor.
+     */
     update_camera_label() {
         let zoom_percentage = Math.floor(this.scale / this.default_scale * 100)
         this.camera_label.innerText = Math.floor(this.camera_pos.x) + " | " + Math.floor(this.camera_pos.y) + " (" + zoom_percentage + "%)";
     }
 
+    /**
+     * Performs a full render of the image on the canvas based on camera position and zoom factor.
+     * Is optimized with view culling.
+     */
     full_render() {
         let render_width = Math.floor(this.camera_pos.x + window.innerWidth / this.scale) + 2;
         let render_height = Math.floor(this.camera_pos.y + window.innerHeight / this.scale) + 2;
@@ -178,25 +225,51 @@ class PixelCanvasHandle {
 
     }
 
+    /**
+     * Checks if a coordinate is out of the image bounds.
+     * @param {Vector2D} pos The position to check.
+     * @returns True if out of bounds.
+     */
     is_out_of_bounds(pos) {
         return (pos.x >= this.size.x || pos.y >= this.size.y || pos.x < 0 || pos.y < 0);
     }
 
+    /**
+     * Checks if a coordinate is out of bounds of the screen canvas.
+     * @param {Vector2D} pos The position to check.
+     * @returns True if out of bounds.
+     */
     is_out_of_screen(pos) {
         return (pos.x >= window.innerWidth / this.scale || pos.y >= window.innerHeight / this.scale || pos.x < 0 || pos.y < 0);
     }
 
+    /**
+     * Corrects a coordinate by adding the camera movment to it.
+     * @param {Vector2D} pos The position to correct.
+     * @param {int} factor Either 1 or -1. Defines if camera movement is added or subtracted.
+     * @returns The camera corrected coordinate.
+     */
     camera_correct_coordinate(pos, factor = 1) {
         return new Vector2D(pos.x - this.camera_pos.intX() * factor,
                             pos.y - this.camera_pos.intY() * factor);
     }
 
+    /**
+     * Checks an event for a certain pressed mouse button.
+     * @param {MouseEvent} event The event to check.
+     * @param {*} button_code The mouse button code to check for.
+     * @returns True if the mouse button is pressed.
+     */
     check_mouse_button(event, button_code) {
         let buttons = event.buttons;
         return (buttons & button_code) != 0;
     }
 
     // TODO: Bug - Here is a bug, where zooming out at the very right/bottom of the canvas stucks the camera.
+    /**
+     * Moves the camera for a certain delta.
+     * @param {Vector2D} move_delta The amount and direction to move the camera.
+     */
     move_camera(move_delta) {
         let new_camera_pos = new Vector2D(this.camera_pos.x - move_delta.x,
                                           this.camera_pos.y - move_delta.y);
@@ -211,6 +284,10 @@ class PixelCanvasHandle {
         this.camera_pos = new_camera_pos;
     }
 
+    /**
+     * The callback wrapper for the camera movement called by the event listeners.
+     * @param {Vector2D} movement The movement of the camera in pixels.
+     */
     move_camera_callback(movement) {
         let move_delta = new Vector2D(movement.x / this.scale,
                                       movement.y / this.scale);
@@ -218,6 +295,10 @@ class PixelCanvasHandle {
         this.full_render();
     }
 
+    /**
+     * Zooms the canvas for a certain amount.
+     * @param {float} factor 
+     */
     zoom(factor) {
         let new_scale = this.scale + factor;
         if(new_scale < this.min_scale)
@@ -227,6 +308,11 @@ class PixelCanvasHandle {
         this.scale = new_scale;
     }
 
+    /**
+     * The callback wrapper for the camera zoom called by the event listeners.
+     * @param {float} direction A float, which indicates with its sign the direction to zoom (in or out).
+     * @param {int} zoom_amount An integer indicating the amount to zoom.
+     */
     zoom_callback(direction, zoom_amount) {
         if(direction > 0) {
             this.zoom(zoom_amount);
@@ -237,6 +323,11 @@ class PixelCanvasHandle {
         this.full_render();
     }
 
+    /**
+     * Renders a single pixel on the canvas. Camera corrects the provided position.
+     * @param {Vector2D} pos The position of the pixel to render in image pixels.
+     * @returns True if everything went ok.
+     */
     render_pixel(pos) {
         if(this.is_out_of_bounds(pos))
             return false;
@@ -250,12 +341,22 @@ class PixelCanvasHandle {
         return true;
     }
 
+    /**
+     * Returns a color of a pixel on the image. Does not camera correct.
+     * @param {Vector2D} pos The image position to get.
+     * @returns The color of the provided pixel position.
+     */
     get_pixel(pos) {
         if(this.is_out_of_bounds(pos))
             return undefined;
         return this.image_data[pos.intY()][pos.intX()];
     }
 
+    /**
+     * The callback wrapper for the pixel eraser called by the event listener. Calls the pixel setting
+     * routine with the background color.
+     * @param {Vector2D} pos The position of the pixel to remove in canvas pixels.
+     */
     erase_pixel_callback(pos) {
         let old_color = this.selected_color;
         this.selected_color = this.initial_color;
@@ -263,6 +364,12 @@ class PixelCanvasHandle {
         this.selected_color = old_color;
     }
 
+    /**
+     * Sets the color of a certain pixel on the image.
+     * @param {Vector2D} pos The position of the pixel to set in image pixels.
+     * @param {string} color The color string to set the pixel to.
+     * @returns 
+     */
     set_pixel(pos, color) {
         if(this.is_out_of_bounds(pos))
             return false;
@@ -272,6 +379,11 @@ class PixelCanvasHandle {
         return true;
     }
 
+    /**
+     * The callback wrapper for the pixel setting called by the event listeners. Performs a pixel
+     * set for each pixel under the brush while considering its size.
+     * @param {Vector2D} pos The center of the brush in canvas pixels.
+     */
     set_pixel_callback(pos) {
         let half_size = Math.floor(this.brush_size / 2);
         let lower_bound = -half_size;
@@ -298,6 +410,12 @@ class PixelCanvasHandle {
         }
     }
 
+    /**
+     * The callback wrapper for the pixel color copy called by teh event listeners. Sets the
+     * currently selected color to the pixel color.
+     * @param {Vector2D} pos The position of the pixel to copy in canvas pixels.
+     * @returns 
+     */
     copy_pixel_callback(pos) {
         let cursor_pos = new Vector2D(Math.floor(pos.x / this.scale),
                                       Math.floor(pos.y / this.scale));
@@ -312,7 +430,10 @@ class PixelCanvasHandle {
         this.color_wheel.value = this.selected_color;
     }
 
-    resizeCanvas() {
+    /**
+     * Resizes the canvas to the full window span. Called by the resize event listener.
+     */
+    resize_canvas() {
         const widthInPixels = Math.floor(window.innerWidth);
         const heightInPixels = Math.floor(window.innerHeight);
     
@@ -320,111 +441,3 @@ class PixelCanvasHandle {
         this.canvas.height = heightInPixels;
     }
 };
-
-let canvas_handle = new PixelCanvasHandle();
-window.addEventListener('resize', () => {
-    canvas_handle.resizeCanvas();
-    canvas_handle.full_render();
-});
-
-// TODO: Add image download function
-// TODO: Add server side storage of image data
-document.addEventListener('contextmenu', (event) => {
-    event.preventDefault();
-});
-
-canvas_handle.color_wheel.addEventListener("input", (event) => {
-    canvas_handle.set_selected_color(event.target.value);
-});
-
-canvas_handle.canvas.addEventListener('mousedown', (event) => {
-    canvas_handle.create_new_event();
-
-    if(canvas_handle.check_mouse_button(event, LEFT_BUTTON)) {
-        if(canvas_handle.selected_tool == TOOL_DRAW)
-            canvas_handle.set_pixel_callback(new Vector2D(event.clientX, event.clientY));
-        if(canvas_handle.selected_tool == TOOL_ERASE)
-            canvas_handle.erase_pixel_callback(new Vector2D(event.clientX, event.clientY));
-        if(canvas_handle.selected_tool == TOOL_PIPETTE)
-            canvas_handle.copy_pixel_callback(new Vector2D(event.clientX, event.clientY));
-    }
-
-    if(canvas_handle.check_mouse_button(event, RIGHT_BUTTON)) {
-        canvas_handle.erase_pixel_callback(new Vector2D(event.clientX, event.clientY));
-    }
-});
-canvas_handle.canvas.addEventListener('mousemove', (event) => {
-    if(canvas_handle.check_mouse_button(event, LEFT_BUTTON)) {
-        if(canvas_handle.selected_tool == TOOL_DRAW)
-            canvas_handle.set_pixel_callback(new Vector2D(event.clientX, event.clientY));
-        if(canvas_handle.selected_tool == TOOL_MOVE)
-            canvas_handle.move_camera_callback(new Vector2D(event.movementX, event.movementY));
-        if(canvas_handle.selected_tool == TOOL_ERASE)
-            canvas_handle.erase_pixel_callback(new Vector2D(event.clientX, event.clientY));
-    }
-
-    if(canvas_handle.check_mouse_button(event, RIGHT_BUTTON)) {
-        canvas_handle.erase_pixel_callback(new Vector2D(event.clientX, event.clientY));
-    }
-
-    if(canvas_handle.check_mouse_button(event, MIDDLE_BUTTON)) {
-        canvas_handle.move_camera_callback(new Vector2D(event.movementX, event.movementY));
-    }
-});
-canvas_handle.canvas.addEventListener('mouseup', (event) => {
-    canvas_handle.clear_curr_event();
-});
-canvas_handle.canvas.addEventListener("wheel", (event) => {
-    canvas_handle.zoom_callback(event.wheelDelta, 5);
-});
-
-canvas_handle.canvas.addEventListener("touchstart", (event) => {
-    canvas_handle.reset_touch_distance();
-    canvas_handle.reset_touch_motion();
-});
-canvas_handle.canvas.addEventListener("touchend", (event) => {
-    canvas_handle.reset_touch_distance();
-    canvas_handle.reset_touch_motion();
-});
-canvas_handle.canvas.addEventListener("touchcancel", (event) => {
-    canvas_handle.reset_touch_distance();
-    canvas_handle.reset_touch_motion();
-});
-canvas_handle.canvas.addEventListener("touchmove", (event) => {
-    if(event.touches.length === 1) {
-        if(canvas_handle.selected_tool == TOOL_DRAW)
-            canvas_handle.set_pixel_callback(new Vector2D(event.touches[0].clientX, event.touches[0].clientY));
-        if(canvas_handle.selected_tool == TOOL_MOVE) {
-            canvas_handle.update_touch_motion(new Vector2D(event.touches[0].clientX, event.touches[0].clientY))
-            canvas_handle.move_camera_callback(canvas_handle.get_touch_motion());
-        }
-        if(canvas_handle.selected_tool == TOOL_ERASE)
-            canvas_handle.erase_pixel_callback(new Vector2D(event.touches[0].clientX, event.touches[0].clientY));
-    }
-    else if(event.touches.length === 2) {
-        if(canvas_handle.selected_tool == TOOL_MOVE) {
-            canvas_handle.update_touch_distance(new Vector2D(event.touches[0].clientX, event.touches[0].clientY),
-                                                new Vector2D(event.touches[1].clientX, event.touches[1].clientY));
-            canvas_handle.zoom_callback(canvas_handle.get_touch_zoom(), 1);
-        }
-    }
-});
-
-document.getElementById("size_picker").addEventListener("click", (event) => {
-    canvas_handle.rotate_brush_size();
-});
-document.getElementById("tool_draw").addEventListener("click", (event) => {
-    canvas_handle.switch_tool(TOOL_DRAW);
-});
-document.getElementById("tool_erase").addEventListener("click", (event) => {
-    canvas_handle.switch_tool(TOOL_ERASE);
-});
-document.getElementById("tool_pipette").addEventListener("click", (event) => {
-    canvas_handle.switch_tool(TOOL_PIPETTE);
-});
-document.getElementById("tool_move").addEventListener("click", (event) => {
-    canvas_handle.switch_tool(TOOL_MOVE);
-});
-
-canvas_handle.resizeCanvas();
-canvas_handle.full_render();
