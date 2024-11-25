@@ -15,13 +15,18 @@ class ImageManager:
         self.save_interval = 60
         self.backup_check_interval = 60 * 60 * 24
         self.stop_event = Event()
-        self.save_worker = Thread(target=self.save_worker_fun, daemon=True)
-        self.backup_worker = Thread(target=self.backup_worker_fun, daemon=True)
+        self.save_worker = Thread(target=self.save_worker_fun)
+        self.backup_worker = Thread(target=self.backup_worker_fun)
         self.event_worker = Thread(target=self.event_worker_fun, daemon=True)
         self.save_worker.start()
         self.backup_worker.start()
         self.event_worker.start()
         self.pixel_change_queue = queue.Queue()
+
+    def close(self):
+        self.stop_event.set()
+        self.save_worker.join()
+        self.backup_worker.join()
 
     def is_out_of_bounds(self, x, y):
         return x < 0 or y < 0 or x >= self.image_size_x or y >= self.image_size_y
@@ -71,6 +76,7 @@ class ImageManager:
                 shutil.copy(self.current_image_path, "images" + os.sep + current_datetime)
             except PermissionError as e:
                 print(f"[Warning] Cannot create backup due to permission errors. {e}.")
+                return
 
         except FileNotFoundError:
             self.init_image()

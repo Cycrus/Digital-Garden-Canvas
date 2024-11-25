@@ -64,6 +64,10 @@ class PixelCanvasHandle {
         this.image_data = this.poll_full_image();
     }
 
+    /**
+     * Sends a pixel event to the server to update the remote main version of the image.
+     * @param {PixelEvent} event The pixel event to send to the server.
+     */
     send_pixel_event(event) {
         fetch(this.server_url + "/queue_event", {
             method: 'POST',
@@ -85,6 +89,9 @@ class PixelCanvasHandle {
         });
     }
 
+    /**
+     * Polls the full image from the server and assigns the local image with the polled one.
+     */
     poll_full_image() {
         fetch(this.server_url + "/poll_full_image")
             .then((response) => {
