@@ -22,13 +22,15 @@ document.addEventListener('contextmenu', (event) => {
  * Mouse event listeners.
  */
 canvas_handle.canvas.addEventListener('mousedown', (event) => {
-    canvas_handle.create_new_event();
-
     if(canvas_handle.check_mouse_button(event, LEFT_BUTTON)) {
-        if(canvas_handle.selected_tool == TOOL_DRAW)
+        if(canvas_handle.selected_tool == TOOL_DRAW) {
+            canvas_handle.create_new_event(canvas_handle.selected_color);
             canvas_handle.set_pixel_callback(new Vector2D(event.clientX, event.clientY));
-        if(canvas_handle.selected_tool == TOOL_ERASE)
+        }
+        if(canvas_handle.selected_tool == TOOL_ERASE) {
+            canvas_handle.create_new_event(canvas_handle.initial_color);
             canvas_handle.erase_pixel_callback(new Vector2D(event.clientX, event.clientY));
+        }
         if(canvas_handle.selected_tool == TOOL_PIPETTE)
             canvas_handle.copy_pixel_callback(new Vector2D(event.clientX, event.clientY));
     }
@@ -68,7 +70,10 @@ canvas_handle.canvas.addEventListener("wheel", (event) => {
 canvas_handle.canvas.addEventListener("touchstart", (event) => {
     canvas_handle.reset_touch_distance();
     canvas_handle.reset_touch_motion();
-    canvas_handle.create_new_event();
+    if(canvas_handle.selected_tool == TOOL_DRAW)
+        canvas_handle.create_new_event(canvas_handle.selected_color);
+    else if(canvas_handle.selected_tool == TOOL_ERASE)
+        canvas_handle.create_new_event(canvas_handle.initial_color);
 });
 canvas_handle.canvas.addEventListener("touchend", (event) => {
     canvas_handle.reset_touch_distance();
@@ -132,6 +137,4 @@ canvas_handle.resize_canvas();
 
 setInterval(() => {
     canvas_handle.poll_full_image();
-    canvas_handle.blit_event_buffer_onto_image();
-    canvas_handle.full_render();
 }, 5000);

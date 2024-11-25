@@ -152,8 +152,8 @@ class PixelCanvasHandle {
     /**
      * Starts the tracking of a new pixel setting event.
      */
-    create_new_event() {
-        this.curr_event = new PixelEvent(this.selected_color);
+    create_new_event(color) {
+        this.curr_event = new PixelEvent(color);
     }
 
     /**

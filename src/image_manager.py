@@ -135,16 +135,16 @@ class ImageManager:
             lines = file.readlines()
             self.image = []
             height = len(lines)
-            width = len(lines[0])
-            self.image_size_x = width
-            self.image_size_y = height
             for line in lines:
                 line.replace("\n", "")
                 colors = line.split(" ")
+                width = len(colors)
                 color_row = []
                 for color in colors:
                     color_row.append(color)
                 self.image.append(color_row)
+            self.image_size_x = width
+            self.image_size_y = height
 
 
     def init_image(self):
