@@ -131,6 +131,7 @@ document.getElementById("tool_download").addEventListener("click", (event) => {
 canvas_handle.resize_canvas();
 
 setInterval(() => {
-    canvas_handle.poll_full_image()
-    canvas_handle.full_render()
+    canvas_handle.poll_full_image();
+    canvas_handle.blit_event_buffer_onto_image();
+    canvas_handle.full_render();
 }, 5000);

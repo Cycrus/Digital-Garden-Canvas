@@ -105,11 +105,27 @@ class PixelCanvasHandle {
                 this.size.x = data["size_x"];
                 this.size.y = data["size_y"];
                 this.image_data = data["image"];
+                this.blit_event_buffer_onto_image();
                 this.full_render();
             })
             .catch(error => {
                 console.error("Not able to poll full image.", error);
             });
+    }
+
+    /**
+     * Copies the pixel event buffer onto the image, so that it does not suddenly vanish during polling.
+     */
+    blit_event_buffer_onto_image() {
+        if(this.curr_event == undefined)
+            return;
+        let color = this.curr_event.color;
+        let pixel_list = this.curr_event.pixel_list;
+        for(let i = 0; i < pixel_list.length; i++) {
+            let x = pixel_list[i].intX();
+            let y = pixel_list[i].intY();
+            this.image_data[y][x] = color;
+        }
     }
 
     /**
