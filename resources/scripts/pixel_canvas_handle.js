@@ -19,6 +19,10 @@ const BRUSH_SIZE_4 = 8;
 
 class PixelCanvasHandle {
     constructor() {
+        const script_url = document.currentScript.src;
+        const url = new URL(script_url);
+        this.server_url = `${url.protocol}//${url.host}`;
+
         this.default_scale = 10;
         this.min_scale = 5;
         this.max_scale = 100;
@@ -57,13 +61,48 @@ class PixelCanvasHandle {
         this.curr_touch_distance = 0.0;
 
         this.context = this.canvas.getContext("2d");
-        this.image_data = new Array(this.size.y);
-        for(let y = 0; y < this.size.y; y++) {
-            this.image_data[y] = new Array(this.width);
-            for(let x = 0; x < this.size.x; x++) {
-                this.image_data[y][x] = this.initial_color;
+        this.image_data = this.poll_full_image();
+    }
+
+    send_pixel_event(event) {
+        fetch(this.server_url + "/queue_event", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(event)
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! Status: ${response.status}`);
             }
-        }
+            return response.json();
+        })
+        .then(data => {
+        })
+        .catch(error => {
+            console.error("Error queueing event:", error);
+        });
+    }
+
+    poll_full_image() {
+        fetch(this.server_url + "/poll_full_image")
+            .then((response) => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then((data) => {
+                console.log("Polled full image from server.");
+                this.size.x = data["size_x"];
+                this.size.y = data["size_y"];
+                this.image_data = data["image"];
+                this.full_render();
+            })
+            .catch(error => {
+                console.error("Not able to poll full image.", error);
+            });
     }
 
     /**
@@ -86,7 +125,6 @@ class PixelCanvasHandle {
             link.click();
         };
     }
-    
 
     /**
      * Starts the tracking of a new pixel setting event.
@@ -98,7 +136,8 @@ class PixelCanvasHandle {
     /**
      * Ends the tracking of a new pixel setting event.
      */
-    clear_curr_event() {
+    finish_curr_event() {
+        this.send_pixel_event(this.curr_event);
         this.curr_event = undefined;
     }
 
@@ -219,10 +258,6 @@ class PixelCanvasHandle {
             }
         }
         this.update_camera_label();
-    }
-
-    poll() {
-
     }
 
     /**

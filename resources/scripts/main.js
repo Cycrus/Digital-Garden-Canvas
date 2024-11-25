@@ -56,7 +56,7 @@ canvas_handle.canvas.addEventListener('mousemove', (event) => {
     }
 });
 canvas_handle.canvas.addEventListener('mouseup', (event) => {
-    canvas_handle.clear_curr_event();
+    canvas_handle.finish_curr_event();
 });
 canvas_handle.canvas.addEventListener("wheel", (event) => {
     canvas_handle.zoom_callback(event.wheelDelta, 5);
@@ -68,14 +68,17 @@ canvas_handle.canvas.addEventListener("wheel", (event) => {
 canvas_handle.canvas.addEventListener("touchstart", (event) => {
     canvas_handle.reset_touch_distance();
     canvas_handle.reset_touch_motion();
+    canvas_handle.create_new_event();
 });
 canvas_handle.canvas.addEventListener("touchend", (event) => {
     canvas_handle.reset_touch_distance();
     canvas_handle.reset_touch_motion();
+    canvas_handle.finish_curr_event();
 });
 canvas_handle.canvas.addEventListener("touchcancel", (event) => {
     canvas_handle.reset_touch_distance();
     canvas_handle.reset_touch_motion();
+    canvas_handle.finish_curr_event();
 });
 canvas_handle.canvas.addEventListener("touchmove", (event) => {
     if(event.touches.length === 1) {
@@ -126,4 +129,8 @@ document.getElementById("tool_download").addEventListener("click", (event) => {
  * Starting up the canvas.
  */
 canvas_handle.resize_canvas();
-canvas_handle.full_render();
+
+setInterval(() => {
+    canvas_handle.poll_full_image()
+    canvas_handle.full_render()
+}, 5000);
