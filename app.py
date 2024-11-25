@@ -8,6 +8,9 @@ app = Flask(__name__, static_folder='resources')
 socketio = SocketIO(app)
 
 def handle_signal(signum, frame):
+    """
+    Handles the sigint and sigterm signals by closing the image manager.
+    """
     global image_manager
     print(f"Received signal {signum}. Exiting gracefully...")#
     image_manager.close()
@@ -15,20 +18,32 @@ def handle_signal(signum, frame):
 
 @app.route('/')
 def index():
+    """
+    Serves the website html.
+    """
     return render_template('digital_garden.html')
 
 @app.route('/resources/<path:filename>')
 def static_files(filename):
+    """
+    Serves all static files.
+    """
     return send_from_directory(app.static_folder, filename)
 
 @app.route("/queue_event", methods=["POST"])
 def queue_event():
+    """
+    Handles the queue event post request, which snycs local pixel changes to the server.
+    """
     event_dict = request.get_json()
     image_manager.add_event_to_queue(event_dict)
     return {}, 200
 
 @app.route("/poll_full_image", methods=["GET"])
 def send_full_image():
+    """
+    Returns the full image to a client when it requests it.
+    """
     image = None
     size = None
     with image_manager.image_lock:

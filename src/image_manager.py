@@ -1,3 +1,7 @@
+"""
+The image manager class, which handles the server side image version.
+"""
+
 import os
 from threading import Lock, Thread, Event
 from datetime import datetime
@@ -9,6 +13,7 @@ class ImageManager:
         self.image_lock = Lock()
         self.image_filename = "image_0"
         self.current_image_path = "images" + os.sep + "current"
+        self.init_color = "#000000"
         self.image_size_x = 1000
         self.image_size_y = 1000
         self.image = None
@@ -24,17 +29,32 @@ class ImageManager:
         self.pixel_change_queue = queue.Queue()
 
     def close(self):
+        """
+        Closes sensitive threads and joins them. Must be called when the app is closed down.
+        """
         self.stop_event.set()
         self.save_worker.join()
         self.backup_worker.join()
 
     def is_out_of_bounds(self, x, y):
+        """
+        Checks if a coordinate is out of bounds of the image.
+        """
         return x < 0 or y < 0 or x >= self.image_size_x or y >= self.image_size_y
 
     def add_event_to_queue(self, event_dict):
+        """
+        Adds a pixel sync event to the event queue. Those come from the clients.
+        :param event_dict: The dictionary with the pixel sync data. Requires a size_x, size_y,
+                           and a 2d image field.
+        """
         self.pixel_change_queue.put(event_dict)
 
     def event_worker_fun(self):
+        """
+        The callback for the event worker thread. Waits for a new event and processes it by updating
+        the server side image.
+        """
         print("[Info] Starting up event worker.")
         while not self.stop_event.is_set():
             pixel_event = self.pixel_change_queue.get()
@@ -47,9 +67,12 @@ class ImageManager:
                 for pixel in pixel_list:
                     x = pixel["x"]
                     y = pixel["y"]
-                    self.image[y][x] = color
+                    self.update_pixel_color(x, y, color)
 
     def save_image(self):
+        """
+        Saves the image to the current image version on the disk. Overwrites the file.
+        """
         if self.image is None:
             return
         os.makedirs(self.current_image_path, exist_ok=True)
@@ -63,6 +86,9 @@ class ImageManager:
         print("[Info] Saved image to disk.")
 
     def save_worker_fun(self):
+        """
+        The callback for the save worker thread. Periodically saves the image to the disk.
+        """
         print("[Info] Starting up saving worker.")
         while not self.stop_event.is_set():
             self.stop_event.wait(timeout=self.save_interval)
@@ -70,6 +96,9 @@ class ImageManager:
                 self.save_image()
 
     def backup_image(self):
+        """
+        Copies the current image directory into a timestamped one used to back up the image.
+        """
         try:
             current_datetime = datetime.now().strftime("%Y%m%d_%H%M%S")
             try:
@@ -84,6 +113,10 @@ class ImageManager:
         print("[Info] Backed up image.")
     
     def backup_worker_fun(self):
+        """
+        The callback for the backup worker thread. Backs up the image periodically into a
+        different directory.
+        """
         print("[Info] Starting up backup worker.")
         while not self.stop_event.is_set():
             self.stop_event.wait(timeout=self.backup_check_interval)
@@ -94,9 +127,17 @@ class ImageManager:
                     print("No backup to make yet (Only on Mondays).")
 
     def load_image(self, filename):
+        """
+        Loads an image from the disk into RAM.
+        :param filename: The filename to load the image from.
+        """
         with open(filename, "r") as file:
             lines = file.readlines()
             self.image = []
+            height = len(lines)
+            width = len(lines[0])
+            self.image_size_x = width
+            self.image_size_y = height
             for line in lines:
                 line.replace("\n", "")
                 colors = line.split(" ")
@@ -105,7 +146,11 @@ class ImageManager:
                     color_row.append(color)
                 self.image.append(color_row)
 
+
     def init_image(self):
+        """
+        Initializes an empty image if none exists yet.
+        """
         self.image = []
 
         if os.path.isfile(self.current_image_path + os.sep + self.image_filename):
@@ -114,24 +159,39 @@ class ImageManager:
 
         else:
             for y in range(self.image_size_y):
-                self.image.append(["#000000"] * self.image_size_x)
+                self.image.append([self.init_color] * self.image_size_x)
             print("[Info] Generated new empty image.")
 
-    def update_pixel_color(x, y, color):
+    def update_pixel_color(self, x, y, color):
+        """
+        Updates the color of a pixel in the image.
+        :param x: The x coordinate of the pixel to update.
+        :param y: The y coordinate of the pixel to update.
+        :param color: The color to set the pixel to.
+        """
         if self.is_out_of_bounds(x, y):
             return False
         self.image[y][x] = color
         return True
 
-    def get_pixel_color(x, y):
+    def get_pixel_color(self, x, y):
+        """
+        Returns the color of a pixel in the image.
+        """
         if self.is_out_of_bounds(x, y):
             return None
         return self.image[y][x]
 
     def get_size(self):
+        """
+        Returns the size of the image.
+        """
         return self.image_size_x, self.image_size_y
 
     def get_image(self):
+        """
+        Returns the full image. If it does not exist yet, it is initialized.
+        """
         if self.image is None:
             self.init_image()
         return self.image
