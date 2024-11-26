@@ -136,5 +136,5 @@ document.getElementById("tool_download").addEventListener("click", (event) => {
 canvas_handle.resize_canvas();
 
 setInterval(() => {
-    canvas_handle.poll_full_image();
-}, 5000);
+    canvas_handle.remote_sync_manager.poll_full_image();
+}, 1000);

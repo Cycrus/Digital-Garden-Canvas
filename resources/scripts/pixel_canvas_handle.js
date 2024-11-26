@@ -19,10 +19,6 @@ const BRUSH_SIZE_4 = 8;
 
 class PixelCanvasHandle {
     constructor() {
-        const script_url = document.currentScript.src;
-        const url = new URL(script_url);
-        this.server_url = `${url.protocol}//${url.host}`;
-
         this.default_scale = 10;
         this.min_scale = 5;
         this.max_scale = 100;
@@ -61,70 +57,39 @@ class PixelCanvasHandle {
         this.curr_touch_distance = 0.0;
 
         this.context = this.canvas.getContext("2d");
-        this.image_data = this.poll_full_image();
-    }
 
-    /**
-     * Sends a pixel event to the server to update the remote main version of the image.
-     * @param {PixelEvent} event The pixel event to send to the server.
-     */
-    send_pixel_event(event) {
-        fetch(this.server_url + "/queue_event", {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(event)
-        })
-        .then(response => {
-            if (!response.ok) {
-                throw new Error(`HTTP error! Status: ${response.status}`);
-            }
-            return response.json();
-        })
-        .then(data => {
-        })
-        .catch(error => {
-            console.error("Error queueing event:", error);
+        this.remote_sync_manager = new ImageSyncManager(this.size, (data) => {
+            this.size.x = data["size_x"];
+            this.size.y = data["size_y"];
+            this.image_data = data["image"];
+            this.blit_event_buffer_onto_image();
+            this.full_render();
         });
-    }
 
-    /**
-     * Polls the full image from the server and assigns the local image with the polled one.
-     */
-    poll_full_image() {
-        fetch(this.server_url + "/poll_full_image")
-            .then((response) => {
-                if (!response.ok) {
-                    throw new Error(`HTTP error! Status: ${response.status}`);
-                }
-                return response.json();
-            })
-            .then((data) => {
-                console.log("Polled full image from server.");
-                this.size.x = data["size_x"];
-                this.size.y = data["size_y"];
-                this.image_data = data["image"];
-                this.blit_event_buffer_onto_image();
-                this.full_render();
-            })
-            .catch(error => {
-                console.error("Not able to poll full image.", error);
-            });
+        this.image_data = undefined;
+        this.remote_sync_manager.poll_full_image();
     }
-
+    
     /**
      * Copies the pixel event buffer onto the image, so that it does not suddenly vanish during polling.
      */
     blit_event_buffer_onto_image() {
-        if(this.curr_event == undefined)
-            return;
-        let color = this.curr_event.color;
-        let pixel_list = this.curr_event.pixel_list;
-        for(let i = 0; i < pixel_list.length; i++) {
-            let x = pixel_list[i].intX();
-            let y = pixel_list[i].intY();
-            this.image_data[y][x] = color;
+        for (let i = -1; i < this.remote_sync_manager.event_list.length; i++) {
+            let pixel_event = undefined;
+            if(i == -1)
+                pixel_event = this.curr_event;
+            else
+                pixel_event = this.remote_sync_manager.event_list[i];
+            if(pixel_event == undefined)
+                continue;
+
+            let color = pixel_event.color;
+            let pixel_list = pixel_event.pixel_list;
+            for(let i = 0; i < pixel_list.length; i++) {
+                let x = pixel_list[i].intX();
+                let y = pixel_list[i].intY();
+                this.image_data[y][x] = color;
+            }
         }
     }
 
@@ -160,7 +125,10 @@ class PixelCanvasHandle {
      * Ends the tracking of a new pixel setting event.
      */
     finish_curr_event() {
-        this.send_pixel_event(this.curr_event);
+        if(this.curr_event == undefined || this.curr_event.pixel_list.length == 0)
+            return;
+
+        this.remote_sync_manager.send_pixel_event(this.curr_event);
         this.curr_event = undefined;
     }
 
