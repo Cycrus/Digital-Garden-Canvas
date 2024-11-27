@@ -81,6 +81,7 @@ class ImageManager:
                 for pixel in pixel_list:
                     x = pixel["x"]
                     y = pixel["y"]
+                    print(x, y, color)
                     self.update_pixel_color(x, y, color)
 
     def save_image(self):

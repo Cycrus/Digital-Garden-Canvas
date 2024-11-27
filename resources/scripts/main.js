@@ -47,6 +47,7 @@ canvas_handle.canvas.addEventListener('mousedown', (event) => {
     }
 
     if(canvas_handle.check_mouse_button(event, RIGHT_BUTTON)) {
+        canvas_handle.create_new_event(canvas_handle.initial_color);
         canvas_handle.erase_pixel_callback(new Vector2D(event.clientX, event.clientY));
     }
 });

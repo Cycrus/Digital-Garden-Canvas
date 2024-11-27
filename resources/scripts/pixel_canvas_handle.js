@@ -74,9 +74,9 @@ class PixelCanvasHandle {
      * Copies the pixel event buffer onto the image, so that it does not suddenly vanish during polling.
      */
     blit_event_buffer_onto_image() {
-        for (let i = -1; i < this.remote_sync_manager.event_list.length; i++) {
+        for (let i = 0; i <= this.remote_sync_manager.event_list.length; i++) {
             let pixel_event = undefined;
-            if(i == -1)
+            if(i == this.remote_sync_manager.event_list.length)
                 pixel_event = this.curr_event;
             else
                 pixel_event = this.remote_sync_manager.event_list[i];
@@ -233,11 +233,23 @@ class PixelCanvasHandle {
         this.camera_label.innerText = Math.floor(this.camera_pos.x) + " | " + Math.floor(this.camera_pos.y) + " (" + zoom_percentage + "%)";
     }
 
+    keep_camera_inbounds() {
+        if(this.camera_pos.x < 0)
+            this.camera_pos.x = 0;
+        if(this.camera_pos.y < 0)
+            this.camera_pos.y = 0;
+        if(Math.floor(this.camera_pos.x + window.innerWidth / this.scale) >= this.size.x)
+            this.camera_pos.x = this.size.x - Math.floor(window.innerWidth / this.scale);
+        if(Math.floor(this.camera_pos.y + window.innerHeight / this.scale) >= this.size.y)
+            this.camera_pos.y = this.size.y - Math.floor(window.innerHeight / this.scale);
+    }
+
     /**
      * Performs a full render of the image on the canvas based on camera position and zoom factor.
      * Is optimized with view culling.
      */
     full_render() {
+        this.keep_camera_inbounds();
         let render_width = Math.floor(this.camera_pos.x + window.innerWidth / this.scale) + 2;
         let render_height = Math.floor(this.camera_pos.y + window.innerHeight / this.scale) + 2;
         let render_pos = new Vector2D(0, 0);
