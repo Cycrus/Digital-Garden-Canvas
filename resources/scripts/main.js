@@ -4,9 +4,6 @@
 
 let canvas_handle = new PixelCanvasHandle();
 
-// TODO: Add image download function
-// TODO: Add server side storage of image data
-
 /**
  * General event listeners
  */
@@ -16,6 +13,20 @@ window.addEventListener('resize', () => {
 });
 document.addEventListener('contextmenu', (event) => {
     event.preventDefault();
+});
+document.addEventListener('keydown', function(event) {
+    // Prevent key zooming
+    if((event.ctrlKey || event.metaKey) && (event.key === '+' || event.key === '-')) {
+        event.preventDefault();
+    }
+    if((event.ctrlKey || event.metaKey) && event.key === '0') {
+        event.preventDefault();
+    }
+
+    if(event.ctrlKey && event.key === "s") {
+        event.preventDefault();
+        canvas_handle.download_image();
+    }
 });
 
 /**
@@ -62,6 +73,11 @@ canvas_handle.canvas.addEventListener('mouseup', (event) => {
 });
 canvas_handle.canvas.addEventListener("wheel", (event) => {
     canvas_handle.zoom_callback(event.wheelDelta, 5);
+
+    // Prevent native mouse wheel zooming
+    if(event.ctrlKey || event.metaKey) {
+        event.preventDefault();
+    }
 });
 
 /**
@@ -137,4 +153,4 @@ canvas_handle.resize_canvas();
 
 setInterval(() => {
     canvas_handle.remote_sync_manager.poll_full_image();
-}, 1000);
+}, 3000);

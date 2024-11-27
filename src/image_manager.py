@@ -41,6 +41,17 @@ class ImageManager:
         Checks if a coordinate is out of bounds of the image.
         """
         return x < 0 or y < 0 or x >= self.image_size_x or y >= self.image_size_y
+    
+    def is_valid_color(self, color):
+        try:
+            color = color.replace("#", "0x")
+            numeric_value = int(color, 16)
+            if numeric_value > 0xffffff:
+                return False
+        except ValueError:
+            return False
+
+        return True
 
     def add_event_to_queue(self, event_dict):
         """
@@ -62,6 +73,9 @@ class ImageManager:
                 continue
             
             color = pixel_event["color"]
+            if not self.is_valid_color(color):
+                continue
+
             pixel_list = pixel_event["pixel_list"]
             with self.image_lock:
                 for pixel in pixel_list:

@@ -10,5 +10,7 @@ RUN pip install -r requirements.txt
 COPY rsc /digital_garden
 COPY templates /digital_garden
 COPY app.py /digital_garden
+COPY resources /digital_garden
+COPY run.sh /digital_garden
 
-CMD ["python3", "app.py"]
+CMD ["./run.sh"]
