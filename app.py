@@ -12,7 +12,7 @@ def handle_signal(signum, frame):
     Handles the sigint and sigterm signals by closing the image manager.
     """
     global image_manager
-    print(f"Received signal {signum}. Exiting gracefully...")
+    print(f"Received signal {signum}. Exiting gracefully...", flush=True)
     image_manager.close()
     exit(0)
 
@@ -56,6 +56,6 @@ def send_full_image():
 if __name__ == '__main__':
     signal.signal(signal.SIGINT, handle_signal)
     signal.signal(signal.SIGTERM, handle_signal)
-    print("[Info] Starting up server.")
+    print("[Info] Starting up server.", flush=True)
     socketio.run(app, debug=False, host="0.0.0.0", port=80)
     #app.run(debug=False, host="0.0.0.0", port=80)

@@ -81,7 +81,6 @@ class ImageManager:
                 for pixel in pixel_list:
                     x = pixel["x"]
                     y = pixel["y"]
-                    print(x, y, color)
                     self.update_pixel_color(x, y, color)
 
     def save_image(self):
@@ -98,13 +97,13 @@ class ImageManager:
                     line += cell + " "
                 line = line[:-1]
                 file.write(line)
-        print("[Info] Saved image to disk.")
+        print("[Info] Saved image to disk.", flush=True)
 
     def save_worker_fun(self):
         """
         The callback for the save worker thread. Periodically saves the image to the disk.
         """
-        print("[Info] Starting up saving worker.")
+        print("[Info] Starting up saving worker.", flush=True)
         while not self.stop_event.is_set():
             self.stop_event.wait(timeout=self.save_interval)
             with self.image_lock:
@@ -119,7 +118,7 @@ class ImageManager:
             try:
                 shutil.copy(self.current_image_path, "images" + os.sep + current_datetime)
             except PermissionError as e:
-                print(f"[Warning] Cannot create backup due to permission errors. {e}.")
+                print(f"[Warning] Cannot create backup due to permission errors. {e}.", flush=True)
                 return
 
         except FileNotFoundError:
@@ -139,7 +138,7 @@ class ImageManager:
                 if "Mon" in datetime.now().strftime("%a"):
                     self.backup_image()
                 else:
-                    print("No backup to make yet (Only on Mondays).")
+                    print("No backup to make yet (Only on Mondays).", flush=True)
 
     def load_image(self, filename):
         """
@@ -170,12 +169,12 @@ class ImageManager:
 
         if os.path.isfile(self.current_image_path + os.sep + self.image_filename):
             self.load_image(self.current_image_path + os.sep + self.image_filename)
-            print("[Info] Loaded previously stored image.")
+            print("[Info] Loaded previously stored image.", flush=True)
 
         else:
             for y in range(self.image_size_y):
                 self.image.append([self.init_color] * self.image_size_x)
-            print("[Info] Generated new empty image.")
+            print("[Info] Generated new empty image.", flush=True)
 
     def update_pixel_color(self, x, y, color):
         """

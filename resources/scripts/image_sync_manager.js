@@ -5,9 +5,8 @@
 
 class ImageSyncManager {
     constructor(size_data_ref, update_fun) {
-        const script_url = document.currentScript.src;
-        const url = new URL(script_url);
-        this.server_url = `${url.protocol}//${url.host}`;
+	const url = new URL(window.location.href);
+	this.server_url = `${url.origin}${url.pathname.replace(/\/$/, '')}`;
 
         this.size = size_data_ref;
         this.update_fun = update_fun;
@@ -54,7 +53,6 @@ class ImageSyncManager {
                 return response.json();
             })
             .then((data) => {
-                console.log("Polled full image from server.");
                 this.update_fun(data);
                 this.event_list = [];
             })
