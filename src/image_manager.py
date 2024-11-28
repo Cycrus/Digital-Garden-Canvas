@@ -19,6 +19,7 @@ class ImageManager:
         self.image = None
         self.save_interval = 60
         self.backup_check_interval = 60 * 60 * 24
+        self.pixel_change_queue = queue.Queue()
         self.stop_event = Event()
         self.save_worker = Thread(target=self.save_worker_fun)
         self.backup_worker = Thread(target=self.backup_worker_fun)
@@ -26,7 +27,6 @@ class ImageManager:
         self.save_worker.start()
         self.backup_worker.start()
         self.event_worker.start()
-        self.pixel_change_queue = queue.Queue()
 
     def close(self):
         """
