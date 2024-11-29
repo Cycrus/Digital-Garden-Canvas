@@ -61,7 +61,7 @@ class PixelCanvasHandle {
         this.remote_sync_manager = new ImageSyncManager(this.size, (data) => {
             this.size.x = data["size_x"];
             this.size.y = data["size_y"];
-            this.image_data = data["image"];
+            this.image_data = this.unpack_image(data["image"]);
             this.blit_event_buffer_onto_image();
             this.full_render();
         });
@@ -69,6 +69,16 @@ class PixelCanvasHandle {
         this.image_data = undefined;
         this.remote_sync_manager.poll_full_image();
     }
+
+    num_color_to_string(color) {
+        const hex = color.toString(16).padStart(6, "0");
+        return `#${hex}`;
+    }
+
+    unpack_image(image) {
+        return image.map(row => row.map(color => this.num_color_to_string(color)));
+    }
+
     
     /**
      * Copies the pixel event buffer onto the image, so that it does not suddenly vanish during polling.

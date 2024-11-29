@@ -2,6 +2,8 @@
 The image manager class, which handles the server side image version.
 """
 
+from . import Image
+import pickle
 import os
 from threading import Lock, Thread, Event
 from datetime import datetime
@@ -13,11 +15,9 @@ class ImageManager:
         self.image_lock = Lock()
         self.image_filename = "image_0"
         self.current_image_path = "images" + os.sep + "current"
-        self.init_color = "#000000"
-        self.image_size_x = 1000
-        self.image_size_y = 1000
-        self.image = None
-        self.save_interval = 60
+        self.init_color = 0  # Black
+        self.image = Image()
+        self.save_interval = 2
         self.backup_check_interval = 60 * 60 * 24
         self.pixel_change_queue = queue.Queue()
         self.stop_event = Event()
@@ -40,15 +40,14 @@ class ImageManager:
         """
         Checks if a coordinate is out of bounds of the image.
         """
-        return x < 0 or y < 0 or x >= self.image_size_x or y >= self.image_size_y
+        return x < 0 or y < 0 or x >= self.image.size_x or y >= self.image.size_y
     
-    def is_valid_color(self, color):
-        try:
-            color = color.replace("#", "0x")
-            numeric_value = int(color, 16)
-            if numeric_value > 0xffffff:
-                return False
-        except ValueError:
+    def is_valid_color_string(self, color):
+        """
+        Checks if a given color hex string is a valid color.
+        """
+        numeric_value = self.color_string_to_num(color)
+        if numeric_value is None or numeric_value > 0xffffff:
             return False
 
         return True
@@ -60,6 +59,14 @@ class ImageManager:
                            and a 2d image field.
         """
         self.pixel_change_queue.put(event_dict)
+
+    def color_string_to_num(self, color):
+        try:
+            color = color.replace("#", "0x")
+            numeric_value = int(color, 16)
+            return numeric_value
+        except ValueError:
+            return None
 
     def event_worker_fun(self):
         """
@@ -73,30 +80,36 @@ class ImageManager:
                 continue
             
             color = pixel_event["color"]
-            if not self.is_valid_color(color):
+            if not self.is_valid_color_string(color):
                 continue
+            numeric_color = self.color_string_to_num(color)
 
             pixel_list = pixel_event["pixel_list"]
             with self.image_lock:
-                for pixel in pixel_list:
-                    x = pixel["x"]
-                    y = pixel["y"]
-                    self.update_pixel_color(x, y, color)
+                for pixel_pos in pixel_list:
+                    print(pixel_pos)
+                    x = pixel_pos["x"]
+                    y = pixel_pos["y"]
+                    self.update_pixel_color(x, y, numeric_color)
+
+    def load_image(self, filename):
+        """
+        Loads an image from the disk into RAM.
+        :param filename: The filename to load the image from.
+        """
+        with open(filename, "rb") as file:
+            self.image = pickle.load(file)
 
     def save_image(self):
         """
         Saves the image to the current image version on the disk. Overwrites the file.
         """
-        if self.image is None:
+        if self.image.image_data is None:
             return
         os.makedirs(self.current_image_path, exist_ok=True)
-        with open(self.current_image_path + os.sep + self.image_filename, "w") as file:
-            for row in self.image:
-                line = ""
-                for cell in row:
-                    line += cell + " "
-                line = line[:-1]
-                file.write(line)
+        with open(self.current_image_path + os.sep + self.image_filename, "wb") as file:
+            print(self.image)
+            pickle.dump(self.image, file)
         print("[Info] Saved image to disk.", flush=True)
 
     def save_worker_fun(self):
@@ -140,40 +153,19 @@ class ImageManager:
                 else:
                     print("No backup to make yet (Only on Mondays).", flush=True)
 
-    def load_image(self, filename):
-        """
-        Loads an image from the disk into RAM.
-        :param filename: The filename to load the image from.
-        """
-        with open(filename, "r") as file:
-            lines = file.readlines()
-            self.image = []
-            height = len(lines)
-            for line in lines:
-                line.replace("\n", "")
-                colors = line.split(" ")
-                width = len(colors)
-                color_row = []
-                for color in colors:
-                    color_row.append(color)
-                self.image.append(color_row)
-            self.image_size_x = width
-            self.image_size_y = height
-
-
     def init_image(self):
         """
         Initializes an empty image if none exists yet.
         """
-        self.image = []
+        self.image.image_data = []
 
         if os.path.isfile(self.current_image_path + os.sep + self.image_filename):
             self.load_image(self.current_image_path + os.sep + self.image_filename)
             print("[Info] Loaded previously stored image.", flush=True)
 
         else:
-            for y in range(self.image_size_y):
-                self.image.append([self.init_color] * self.image_size_x)
+            for y in range(self.image.size_y):
+                self.image.image_data.append([self.init_color] * self.image.size_x)
             print("[Info] Generated new empty image.", flush=True)
 
     def update_pixel_color(self, x, y, color):
@@ -181,11 +173,11 @@ class ImageManager:
         Updates the color of a pixel in the image.
         :param x: The x coordinate of the pixel to update.
         :param y: The y coordinate of the pixel to update.
-        :param color: The color to set the pixel to.
+        :param color: The numeric color to set the pixel to.
         """
         if self.is_out_of_bounds(x, y):
             return False
-        self.image[y][x] = color
+        self.image.image_data[y][x] = color
         return True
 
     def get_pixel_color(self, x, y):
@@ -194,18 +186,18 @@ class ImageManager:
         """
         if self.is_out_of_bounds(x, y):
             return None
-        return self.image[y][x]
+        return self.image.image_data[y][x]
 
     def get_size(self):
         """
         Returns the size of the image.
         """
-        return self.image_size_x, self.image_size_y
+        return self.image.size_x, self.image.size_y
 
     def get_image(self):
         """
         Returns the full image. If it does not exist yet, it is initialized.
         """
-        if self.image is None:
+        if self.image.image_data is None:
             self.init_image()
-        return self.image
+        return self.image.image_data

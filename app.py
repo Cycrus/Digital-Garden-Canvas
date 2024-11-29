@@ -57,5 +57,5 @@ if __name__ == '__main__':
     signal.signal(signal.SIGINT, handle_signal)
     signal.signal(signal.SIGTERM, handle_signal)
     print("[Info] Starting up server.", flush=True)
-    socketio.run(app, debug=False, host="0.0.0.0", port=80)
-    #app.run(debug=False, host="0.0.0.0", port=80)
+    #socketio.run(app, debug=False, host="0.0.0.0", port=80)
+    app.run(debug=False, host="0.0.0.0", port=80)
