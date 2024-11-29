@@ -87,7 +87,6 @@ class ImageManager:
             pixel_list = pixel_event["pixel_list"]
             with self.image_lock:
                 for pixel_pos in pixel_list:
-                    print(pixel_pos)
                     x = pixel_pos["x"]
                     y = pixel_pos["y"]
                     self.update_pixel_color(x, y, numeric_color)
