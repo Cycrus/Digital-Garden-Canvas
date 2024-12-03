@@ -10,6 +10,7 @@ class ImageSyncManager {
 
         this.size = size_data_ref;
         this.update_fun = update_fun;
+        this.can_poll_image = true;
 
         this.event_list = [];
     }
@@ -45,6 +46,10 @@ class ImageSyncManager {
      * Polls the full image from the server and assigns the local image with the polled one.
      */
     poll_full_image() {
+        if(!this.can_poll_image)
+            return;
+
+        this.can_poll_image = false;
         fetch(this.server_url + "/poll_full_image")
             .then((response) => {
                 if (!response.ok) {
@@ -54,6 +59,7 @@ class ImageSyncManager {
             })
             .then((data) => {
                 this.update_fun(data);
+                this.can_poll_image = true;
                 this.event_list = [];
             })
             .catch(error => {

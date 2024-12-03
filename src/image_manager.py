@@ -17,10 +17,13 @@ class ImageManager:
         self.current_image_path = "images" + os.sep + "current"
         self.init_color = 0  # Black
         self.image = Image()
-        self.save_interval = 2
-        self.backup_check_interval = 60 * 60 * 24
+        self.save_interval = 60  # 1 min
+        self.backup_check_interval = 60 * 60  # 1 h
+        self.created_backup = False
         self.pixel_change_queue = queue.Queue()
         self.stop_event = Event()
+        self.can_save_event = Event()
+        self.can_save_lock = Lock()
         self.save_worker = Thread(target=self.save_worker_fun)
         self.backup_worker = Thread(target=self.backup_worker_fun)
         self.event_worker = Thread(target=self.event_worker_fun, daemon=True)
@@ -61,6 +64,11 @@ class ImageManager:
         self.pixel_change_queue.put(event_dict)
 
     def color_string_to_num(self, color):
+        """
+        Casts a hexadecimal color value string to an integer.
+        :param color: The string to cast (must be in form #xxxxxx)
+        :return: The integer if the string could be casted. None otherwise.
+        """
         try:
             color = color.replace("#", "0x")
             numeric_value = int(color, 16)
@@ -91,6 +99,9 @@ class ImageManager:
                     y = pixel_pos["y"]
                     self.update_pixel_color(x, y, numeric_color)
 
+            with self.can_save_lock:
+                self.can_save_event.set()
+
     def load_image(self, filename):
         """
         Loads an image from the disk into RAM.
@@ -105,9 +116,9 @@ class ImageManager:
         """
         if self.image.image_data is None:
             return
+
         os.makedirs(self.current_image_path, exist_ok=True)
         with open(self.current_image_path + os.sep + self.image_filename, "wb") as file:
-            print(self.image)
             pickle.dump(self.image, file)
         print("[Info] Saved image to disk.", flush=True)
 
@@ -118,6 +129,14 @@ class ImageManager:
         print("[Info] Starting up saving worker.", flush=True)
         while not self.stop_event.is_set():
             self.stop_event.wait(timeout=self.save_interval)
+            if self.stop_event.is_set():
+                return
+
+            with self.can_save_lock:
+                if not self.can_save_event.is_set():
+                    continue
+                self.can_save_event.clear()
+
             with self.image_lock:
                 self.save_image()
 
@@ -126,11 +145,14 @@ class ImageManager:
         Copies the current image directory into a timestamped one used to back up the image.
         """
         try:
-            current_datetime = datetime.now().strftime("%Y%m%d_%H%M%S")
+            current_date = datetime.now().strftime("%Y_%m_%d")
+            if os.path.isdir("images" + os.sep + current_date):
+                return
+
             try:
-                shutil.copy(self.current_image_path, "images" + os.sep + current_datetime)
-            except PermissionError as e:
-                print(f"[Warning] Cannot create backup due to permission errors. {e}.", flush=True)
+                shutil.copytree(self.current_image_path, "images" + os.sep + current_date)
+            except Exception as e:
+                print(f"[Warning] Cannot create backup. {e}.", flush=True)
                 return
 
         except FileNotFoundError:
@@ -146,6 +168,8 @@ class ImageManager:
         print("[Info] Starting up backup worker.")
         while not self.stop_event.is_set():
             self.stop_event.wait(timeout=self.backup_check_interval)
+            if self.stop_event.is_set():
+                return
             with self.image_lock:
                 if "Mon" in datetime.now().strftime("%a"):
                     self.backup_image()
