@@ -151,6 +151,7 @@ class ImageManager:
 
             try:
                 shutil.copytree(self.current_image_path, "images" + os.sep + current_date)
+                print("[Info] Backed up image.")
             except Exception as e:
                 print(f"[Warning] Cannot create backup. {e}.", flush=True)
                 return
@@ -158,7 +159,6 @@ class ImageManager:
         except FileNotFoundError:
             self.init_image()
             self.save_image()
-        print("[Info] Backed up image.")
     
     def backup_worker_fun(self):
         """
@@ -173,8 +173,6 @@ class ImageManager:
             with self.image_lock:
                 if "Mon" in datetime.now().strftime("%a"):
                     self.backup_image()
-                else:
-                    print("No backup to make yet (Only on Mondays).", flush=True)
 
     def init_image(self):
         """
